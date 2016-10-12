@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DAND_P6 - Discovering the baseball dataset</title>
+  <script src="http://www.d3plus.org/js/d3.js"></script>
+  <script src="http://www.d3plus.org/js/d3plus.js"></script>
+  <script src="http://dimplejs.org/dist/dimple.v2.1.6.min.js"></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+  <script src="js/bootstrap.min.js"></script>
+  <link href="css/bootstrap.css" rel="stylesheet">
+  <script type="text/javascript">
+    var width = $(window).width();
+    var height = $(window).height();
+    var timer = 0;
+
+    function DrawAvgLine(svg, chart, x_axis, y_axis, axis, value) {
+      //function to draw average lines on the plots
+      if (axis == "y") {
+        svg.append("line")
+          .attr("x1", x_axis._scale(value))
+          .attr("x2", x_axis._scale(value))
+          .attr("y1", chart._yPixels() + chart._heightPixels())
+          .attr("y2", chart._yPixels())
+          .attr("class", "avg-y")
+          .style("stroke", "red")
+          .style("stroke-dasharray", "3");
+        svg.append("text")
+          .attr("y", chart._yPixels() - 5)
+          .attr("x", x_axis._scale(value) + 5)
+          .attr("width", 500)
+          .attr("height", 30)
+          .style("font-family", "sans-serif")
+          .style("font-weight", "bold")
+          .style("fill", "rgb(210, 107, 95)")
+          .text('Average: ' + value);
+        return d3.select("#avg-y");
+      } else {
+        svg.append("line")
+          .attr("y1", y_axis._scale(value))
+          .attr("y2", y_axis._scale(value))
+          .attr("x1", chart._xPixels())
+          .attr("x2", chart._xPixels() + chart._widthPixels())
+          .attr("class", "avg-x")
+          .style("stroke", "red")
+          .style("stroke-dasharray", "3");
+        svg.append("text")
+          .attr("x", chart._xPixels() + chart._widthPixels() + 5)
+          .attr("y", y_axis._scale(value) + 5)
+          .attr("width", 500)
+          .attr("height", 30)
+          .style("font-family", "sans-serif")
+          .style("font-weight", "bold")
+          .style("fill", "rgb(210, 107, 95)")
+          .text('Average: ' + value);
+        return d3.select("#avg-x");
+      }
+    }
+
+    function TitleSlide(text, n, data) {
+      //function to produce a slide given its index (n), header text (text), and data source (data)
+      d3.select(".page-header")
+        .append("h1")
+        .attr("id", "main-title-" + n)
+        .attr("class", "title-class")
+        .text(text)
+        .style("vertical-alignment", "top")
+        .style("margin", "0px");
+      if (n == 3 || n == 4 || n == 5) {
+        //template for two plots per page
+        var svg1 = d3.select("#main-plot-" + n)
+          .style("height", $(window)
+          .height() / 3)
+          .style("visibility", "hidden");
+        var svg2 = d3.select("#split-plot-" + n)
+          .style("height", $(window)
+          .height() / 3)
+          .style("visibility", "hidden");
+        d3.select("#plot-div-2")
+          .style("display", "");
+      } else {
+        //template for one plot per page
+        var svg = d3.select("#main-plot-" + n)
+          .style("height", $(window)
+          .height() / 3)
+          .style("visibility", "hidden");
+        d3.select("#plot-div-2")
+          .style("display", "none");
+      }
+      switch (n) {
+        //typical baseball characteristics bubble chart
+      case 1:
+        var myChart = new dimple.chart(svg, data);
+        var x = myChart.addMeasureAxis("x", "weight");
+        x.overrideMin = d3.min(data, function (d) {
+          return d.weight
+        });
+        x.overrideMax = d3.max(data, function (d) {
+          return d.weight
+        });
+        var y = myChart.addMeasureAxis("y", "height");
+        y.overrideMin = d3.min(data, function (d) {
+          return d.height
+        });
+        y.overrideMax = d3.max(data, function (d) {
+          return d.height
+        });
+        var handedness = myChart.addCategoryAxis("color", "handedness");
+        var s1 = myChart.addSeries(["ID", "name", "handedness"], dimple.plot.scatter);
+        var leg = myChart.addLegend(10, 25, 300, 50, "right", s1);
+        myChart.draw();
+        d3.selectAll(".dimple-bubble")
+          .attr("opacity", 0.6)
+          .attr("r", 3);
+        svg.style("visibility", "visible");
+        myChart.axes[1].titleShape.text('Height (in)')
+          .style("font-weight", "bold")
+          .style("font-size", "14px");
+        myChart.axes[0].titleShape.text('Weight (lbs)')
+          .style("font-weight", "bold")
+          .style("font-size", "14px");
+        svg.append("text")
+          .attr("x", 200)
+          .attr("y", 15)
+          .text("Handedness")
+          .style("font-weight", "bold");
+        DrawAvgLine(svg, myChart, x, y, "y", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.weight
+          })));
+        DrawAvgLine(svg, myChart, x, y, "x", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.height
+          })));
+        d3.select("#load-text")
+          .style("display", "none");
+        d3.select("#continue-button")
+          .style("visibility", "visible");
+        break;
+        //typical baseball stats
+      case 2:
+        var myChart = new dimple.chart(svg, data);
+        var x = myChart.addLogAxis("x", "avg");
+        var y = myChart.addLogAxis("y", "HR");
+        var s1 = myChart.addSeries(['ID', 'name'], dimple.plot.scatter);
+        x.logBase = 2;
+        x.overrideMin = d3.min(data, function (d) {
+          return d.avg
+        });
+        x.overrideMax = 0.4;
+        y.overrideMin = d3.min(data, function (d) {
+          return d.HR
+        });
+        myChart.draw();
+        if (x.overrideMin > 0) {
+          x._origin = myChart._xPixels();
+        }
+        if (y.overrideMin > 0) {
+          y._origin = myChart._yPixels() + myChart._heightPixels();
+        }
+        d3.select("#main-plot-" + n)
+          .selectAll(".dimple-bubble")
+          .attr("opacity", 0.4)
+          .attr("r", 3)
+          .style("fill", "rgb(37,37,37)")
+          .style("stroke", "rgb(0,0,0)");
+        svg.style("visibility", "visible");
+        myChart.axes[1].titleShape.text('# of Homeruns')
+          .style("font-weight", "bold")
+          .style("font-size", "14px");
+        myChart.axes[0].titleShape.text('Batting Average')
+          .style("font-weight", "bold")
+          .style("font-size", "14px");
+        DrawAvgLine(svg, myChart, x, y, "y", d3.format(".2f")(d3.mean(data
+          , function (d) {
+            return d.avg
+          })));
+        DrawAvgLine(svg, myChart, x, y, "x", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.HR
+          })));
+        break;
+        //stats by weight
+      case 3:
+        var myChart = new dimple.chart(svg1, data);
+        var x = myChart.addMeasureAxis("x", "weight");
+        var y = myChart.addMeasureAxis("y", "HR");
+        var s1 = myChart.addSeries(['ID', 'name'], dimple.plot.scatter);
+        x.overrideMin = d3.min(data, function (d) {
+          return d.weight
+        });
+        x.overrideMax = d3.max(data, function (d) {
+          return d.weight
+        });
+        y.overrideMin = d3.min(data, function (d) {
+          return d.HR
+        });
+        myChart.draw();
+        d3.select("#main-plot-" + n)
+          .selectAll(".dimple-bubble")
+          .attr("opacity", 0.4)
+          .attr("r", 3)
+          .style("fill", "rgb(37,37,37)")
+          .style("stroke", "rgb(0,0,0)");
+        svg1.transition()
+          .delay(timer)
+          .style("visibility", "visible");
+        myChart.axes[1].titleShape.transition()
+          .delay(timer)
+          .text('# of Homeruns')
+          .style("font-weight", "bold")
+          .style("font-size", "12px");
+        myChart.axes[0].titleShape.transition()
+          .delay(timer)
+          .text('Weight (lbs)')
+          .style("font-weight", "bold")
+          .style("font-size", "12px");
+        DrawAvgLine(svg1, myChart, x, y, "y", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.weight
+          })));
+        DrawAvgLine(svg1, myChart, x, y, "x", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.HR
+          })));
+        var myChart = new dimple.chart(svg2, data);
+        var x = myChart.addMeasureAxis("x", "weight");
+        var y = myChart.addMeasureAxis("y", "avg");
+        var s1 = myChart.addSeries(['ID', 'name'], dimple.plot.scatter);
+        x.overrideMin = d3.min(data, function (d) {
+          return d.weight
+        });
+        x.overrideMax = d3.max(data, function (d) {
+          return d.weight
+        });
+        y.overrideMin = d3.min(data, function (d) {
+          return d.avg
+        });
+        y.overrideMax = d3.max(data, function (d) {
+          return d.avg
+        });
+        myChart.draw();
+        d3.select("#split-plot-" + n)
+          .selectAll(".dimple-bubble")
+          .attr("opacity", 0.4)
+          .attr("r", 3)
+          .style("fill", "rgb(37,37,37)")
+          .style("stroke", "rgb(0,0,0)");
+        svg2.style("visibility", "visible");
+        myChart.axes[1].titleShape.text('Batting Average')
+          .style("font-weight", "bold")
+          .style("font-size", "12px");
+        myChart.axes[0].titleShape.text('Weight (lbs)')
+          .style("font-weight", "bold")
+          .style("font-size", "12px");
+        DrawAvgLine(svg2, myChart, x, y, "y", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.weight
+          })));
+        DrawAvgLine(svg2, myChart, x, y, "x", d3.format(".2f")(d3.mean(data
+          , function (d) {
+            return d.avg
+          })));
+        break;
+        //stats by height
+      case 4:
+        var myChart = new dimple.chart(svg1, data);
+        var x = myChart.addMeasureAxis("x", "height");
+        var y = myChart.addMeasureAxis("y", "HR");
+        var s1 = myChart.addSeries(['ID', 'name'], dimple.plot.scatter);
+        x.overrideMin = d3.min(data, function (d) {
+          return d.height
+        });
+        x.overrideMax = d3.max(data, function (d) {
+          return d.height
+        });
+        y.overrideMin = d3.min(data, function (d) {
+          return d.HR
+        });
+        myChart.draw();
+        d3.select("#main-plot-" + n)
+          .selectAll(".dimple-bubble")
+          .attr("opacity", 0.4)
+          .attr("r", 3)
+          .style("fill", "rgb(37,37,37)")
+          .style("stroke", "rgb(0,0,0)");
+        svg1.style("visibility", "visible");
+        myChart.axes[1].titleShape.text('# of Homeruns')
+          .style("font-weight", "bold")
+          .style("font-size", "12px");
+        myChart.axes[0].titleShape.text('Height (in)')
+          .style("font-weight", "bold")
+          .style("font-size", "12px");
+        DrawAvgLine(svg1, myChart, x, y, "y", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.height
+          })));
+        DrawAvgLine(svg1, myChart, x, y, "x", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.HR
+          })));
+        var myChart = new dimple.chart(svg2, data);
+        var x = myChart.addMeasureAxis("x", "height");
+        var y = myChart.addMeasureAxis("y", "avg");
+        var s1 = myChart.addSeries(['ID', 'name'], dimple.plot.scatter);
+        x.overrideMin = d3.min(data, function (d) {
+          return d.height
+        });
+        x.overrideMax = d3.max(data, function (d) {
+          return d.height
+        });
+        y.overrideMin = d3.min(data, function (d) {
+          return d.avg
+        });
+        y.overrideMax = d3.max(data, function (d) {
+          return d.avg
+        });
+        myChart.draw();
+        d3.select("#split-plot-" + n)
+          .selectAll(".dimple-bubble")
+          .attr("opacity", 0.4)
+          .attr("r", 3)
+          .style("fill", "rgb(37,37,37)")
+          .style("stroke", "rgb(0,0,0)");
+        svg2.style("visibility", "visible");
+        myChart.axes[1].titleShape.text('Batting Average')
+          .style("font-weight", "bold")
+          .style("font-size", "12px");
+        myChart.axes[0].titleShape.text('Height (in)')
+          .style("font-weight", "bold")
+          .style("font-size", "12px");
+        DrawAvgLine(svg2, myChart, x, y, "y", d3.format(".1f")(d3.mean(data
+          , function (d) {
+            return d.height
+          })));
+        DrawAvgLine(svg2, myChart, x, y, "x", d3.format(".2f")(d3.mean(data
+          , function (d) {
+            return d.avg
+          })));
+        break;
+        //stats by handedness
+      case 5:
+        //draw boxplots using d3plus
+        var visualization = d3plus.viz()
+          .container("#main-plot-" + n)
+          .data(data)
+          .type("box")
+          .id("name")
+          .x({
+            value: "handedness"
+            , label: "Handedness"
+          })
+          .y({
+            value: "HR"
+            , label: "# of Homeruns"
+          })
+          .labels({
+            align: "center"
+            , font: {
+              weight: "bold"
+            }
+          })
+          .font({
+            weight: "bold"
+          })
+          .height(height / 3)
+          .draw();
+        var visualization = d3plus.viz()
+          .container("#split-plot-" + n)
+          .data(data)
+          .type("box")
+          .id("name")
+          .x({
+            value: "handedness"
+            , label: "Handedness"
+          })
+          .y({
+            value: "avg"
+            , label: "Batting Average"
+          })
+          .labels({
+            align: "center"
+          })
+          .font({
+            weight: "bold"
+          })
+          .height(height / 3)
+          .draw();
+        break;
+      }
+    };
+
+    function GetHeader(i) {
+      var heading = "";
+      switch (i) {
+      case 1:
+        heading =
+          "Question 1: \n What does the typical baseball player look like?";
+        break;
+      case 2:
+        heading =
+          "Question 2: \n What do typical baseball player statistics look like?";
+        break;
+      case 3:
+        heading =
+          "Question 3: \n How do baseball player statistics vary by Weight?";
+        break;
+      case 4:
+        heading =
+          "Question 4: \n How do baseball player statistics vary by Height?";
+        break;
+      case 5:
+        heading =
+          "Question 5: \n How do baseball player statistics vary by Handedness?";
+        break;
+      case 6:
+        heading = "My Findings";
+        break;
+      }
+      return heading;
+    }
+
+    function GoToSlide(slide_cnt) {
+      //function to go to a specific slide
+      d3.selectAll("svg")
+        .style("display", "none");
+      d3.select("#main-plot-5")
+        .style("display", "none");
+      d3.select("#split-plot-5")
+        .style("display", "none");
+      if (slide_cnt != 6) {
+        $("#main-plot-" + slide_cnt)
+          .attr("style", "height:" + height / 2.8 + ";width:" + width)
+          .find("svg")
+          .attr("style", "height:" + height / 2.8 + ";width:" + width);
+        $("#split-plot-" + slide_cnt)
+          .attr("style", "height:" + height / 2.8 + ";width:" + width)
+          .find("svg")
+          .attr("style", "height:" + height / 2.8 + ";width:" + width);
+        //have to manually remove boxplot median values, because they only
+        //appear correctly in one instance (this could be a bug with the library)
+        //also manually setting to monochrome
+        d3.selectAll(".d3plus_whisker")
+          .select("text")
+          .remove();
+        d3.selectAll(".d3plus_whisker")
+          .select("rect")
+          .remove();
+        d3.selectAll("[width='8']")
+          .style("fill", "black")
+          .style("opacity", 0.3);
+      } else {
+        d3.select("dl")
+          .style("display", "");
+      }
+    }
+
+    function Draw(data) {
+      //function to create and loop through data-driven slides
+      slide_cnt = 0;
+      $('#continue-button')
+        .on('click', function () {
+          slide_cnt += 1;
+          //set progress in navbar
+          $(".nav")
+            .find("ul :nth-child(" + slide_cnt + ")")
+            .removeClass("disabled")
+            .addClass("active");
+          if (slide_cnt < 6) {
+            d3.selectAll(".title-class")
+              .style("display", "none");
+            d3.select("#main-title-" + slide_cnt)
+              .style("display", "");
+            GoToSlide(slide_cnt);
+          } else {
+            d3.selectAll(".title-class")
+              .style("display", "none");
+            d3.select(".page-header")
+              .append("h1")
+              .attr("id", "main-title-" + slide_cnt)
+              .attr("class", "title-class")
+              .text(GetHeader(slide_cnt))
+              .style("vertical-alignment", "top")
+              .style("margin", "0px");
+            //set text transitions
+            d3.selectAll("svg")
+              .style("display", "none");
+            d3.select("#main-plot-5")
+              .style("display", "none");
+            d3.select("#split-plot-5")
+              .style("display", "none");
+            d3.select("#continue-button")
+              .style("display", "none");
+            d3.select("dl")
+              .style("display", "");
+            timer += 500;
+            d3.select("#dt1")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+            timer += 500;
+            d3.select("#dd1")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+            timer += 1500;
+            d3.select("#dt2")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+            timer += 500;
+            d3.select("#dd2")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+            timer += 1500;
+            d3.select("#dt3")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+            timer += 500;
+            d3.select("#dd3")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+            timer += 1500;
+            d3.select("#dt4")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+            timer += 500;
+            d3.select("#dd4")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+            timer += 1000;
+            d3.select("#dt5")
+              .transition()
+              .delay(timer)
+              .style("visibility", "visible")
+              .style("display", "");
+          }
+        });
+      //function to go to slide from navbar
+      $("nav li")
+        .bind('click', function () {
+          if (!$(this)
+            .hasClass("disabled")) {
+            slide_cnt = $("nav li")
+              .index(this) + 1
+            $(this)
+              .addClass("active");
+            d3.selectAll(".title-class")
+              .style("display", "none");
+            d3.select("#main-title-" + slide_cnt)
+              .style("display", "");
+            d3.select("dl")
+              .style("display", "none");
+            d3.select("#dt5")
+              .style("display", "none");
+            GoToSlide(slide_cnt);
+          }
+        });
+      for (i = 0; i < 6; i++) {
+        //requires svg or div depending on if dimple or d3plus is used in the slide
+        if (i != 5) {
+          var var_svg = dimple.newSvg("#plot-div", "100%", "100%");
+          var_svg.attr("id", "main-plot-" + i);
+          var var_svg = dimple.newSvg("#plot-div-2", "100%", "100%");
+          var_svg.attr("id", "split-plot-" + i);
+        } else {
+          d3.select("#plot-div")
+            .append("div")
+            .attr("id", "main-plot-" + i);
+          d3.select("#plot-div-2")
+            .append("div")
+            .attr("id", "split-plot-" + i);
+        }
+        TitleSlide(GetHeader(i), i, data);
+      };
+      d3.selectAll("svg")
+        .style("display", "none");
+      d3.selectAll(".title-class:not(#main-title)")
+        .style("display", "none");
+    }
+
+  </script>
+</head>
+
+<body>
+  <div class="container" style="margin:0px">
+    <div class="row">
+      <nav class="nav navbar-default" style="margin-bottom:2%">
+        <div class="navbar-header"> <a class="navbar-brand" href="#">Slide Navigation:</a> </div>
+        <ul class="nav navbar-nav">
+          <li class="disabled"><a href="#">Physical Player Characteristics</a></li>
+          <li class="disabled"><a href="#">Baseball Statistics</a></li>
+          <li class="disabled"><a href="#">Performance vs Weight</a></li>
+          <li class="disabled"><a href="#">Performance vs Height</a></li>
+          <li class="disabled"><a href="#">Performance vs Handedness</a></li>
+          <li class="disabled"><a href="#">Findings</a></li>
+        </ul>
+      </nav>
+    </div>
+    <div class="row">
+      <div class="col-sm-offset-1 col-md-offset-1 col-lg-offset-1 col-sm-8 col-md-8 col-lg-8 page-header"
+        style="margin:0px;">
+        <h1 class="title-class" id="main-title" style="margin:0px;">Do any physical factors correlate with a baseball batter's career performance?</h1> </div>
+      <div class="col-sm-3 col-lg-3 col-md-3">
+        <h3 id="load-text">Loading...Please Wait.</h4>
+                    <button type="button" class="btn btn-primary btn-lg" style="visibility:hidden; width:100%;" id="continue-button">Continue</button>
+            </div>
+        </div>
+            <div class="row">
+
+                <div class="col-md-11 col-lg-11 col-sm-11 col-sm-offset-1 col-md-offset-1 col-lg-offset-1" id="plot-div" >
+                    <dl class="dl-horizontal h3" style="display:none;">
+                        <dt class="col-sm-3" id="dt1" style="visibility:hidden;width:inherit;;margin-bottom:5%";>Homeruns and Batting Average</dt>
+                        <dd class="col-sm-6" id="dd1" style="visibility:hidden;text-align:center;margin-left:5%">
+                          A positive correlation exists between <strong>number of homeruns</strong> and <strong>batting average</strong>
+                        </dd>
+                        <dt class="col-sm-3" id="dt2" style="visibility:hidden;width:inherit;;margin-bottom:5%";>Performance vs Weight </dt>
+                        <dd class="col-sm-6" id="dd2" style="visibility:hidden;text-align:center;margin-left:5%">
+                          <strong>Mid-weight</strong> players appear to hit <strong>more homeruns</strong>. 
+                        </dd>
+                        <dt class="col-sm-3" id="dt3" style="visibility:hidden;width:inherit;margin-bottom:5%">Performance vs Height </dt>
+                        <dd class="col-sm-6" id="dd3" style="visibility:hidden;text-align:center;margin-left:5%">
+                          <strong>Mid-height</strong> players appear to hit <strong>more homeruns</strong>.
+                        </dd>
+
+                        <dt class="col-sm-3" id="dt4" style="visibility:hidden;width:inherit;margin-bottom:5%">
+                          Performance vs Handedness
+                        </dt>
+                        <dd class="col-sm-6" id="dd4" style="visibility:hidden;text-align:center;margin-left:5%">
+                          <strong>Left-handed</strong> players appear to <strong>outperform</strong> in both metrics. 
+                        </dd>
+
+                    </dl>
+
+                </div>
+            </div>
+            <div class="row">
+                    <h3 id="dt5" class="col-sm-offset-1 col-md-offset-1 col-lg-offset-1" style="visibility:hidden;text-align:center;color:blue"><strong>Explore the data yourself using the toolbar at the top of this form.</strong></h3>
+        <div class="col-sm-offset-1 col-lg-offset-1 col-md-offset-1 col-md-11 col-sm-11 col-lg-11"
+          id="plot-div-2"> </div>
+      </div>
+    </div>
+    <script type="text/javascript">
+      d3.csv('data/baseball_data_cleaned.csv', function (error, data) {
+        if (error) return console.error(error);
+        data.forEach(function (d) {
+          d3.keys(d)
+            .forEach(function (k) {
+              if (k !== 'name' && k !== 'handedness') {
+                d[k] = +d[k]
+              }
+            })
+        })
+        Draw(data);
+      });
+
+    </script>
+</body>
+
+</html>
